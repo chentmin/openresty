@@ -1,21 +1,22 @@
 FROM debian:jessie
 
 RUN apt-get update \
-  && apt-get install -y wget git gcc g++ make libc6-dev libpcre++-dev libssl-dev libxslt-dev libgd2-xpm-dev libgeoip-dev perl libssl1.0.0 libxslt1.1 libgd3 libxpm4 libgeoip1 libav-tools \
+  && apt-get install -y wget gcc g++ make libc6-dev libpcre++-dev libssl-dev libxslt-dev libgd2-xpm-dev libgeoip-dev perl libssl1.0.0 libxslt1.1 libgd3 libxpm4 libgeoip1 libav-tools \
   && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir /opt/luajit && wget http://luajit.org/download/LuaJIT-2.0.4.tar.gz -O /opt/luajit.tar.gz && tar xfz /opt/luajit.tar.gz -C /opt/luajit && rm -f /opt/luajit.tar.gz
-RUN cd /opt/luajit/LuaJIT-2.0.4 && make install
+ENV LUAJIT_VERSION 2.0.4
+ENV OPENRESTY_VERSION 0.9.19 
+ENV NGINX_VERSION 1.8.0
+
+RUN mkdir /opt/luajit && wget http://luajit.org/download/LuaJIT-${LUAJIT_VERSION}.tar.gz -O /opt/luajit.tar.gz && tar xfz /opt/luajit.tar.gz -C /opt/luajit && rm -f /opt/luajit.tar.gz
+RUN cd /opt/luajit/LuaJIT-${LUAJIT_VERSION} && make install
 
 ENV LUAJIT_LIB /usr/local/lib 
 ENV LUAJIT_INC /usr/local/include/luajit-2.0
 
-ENV MODULE_GIT_URL https://github.com/openresty/lua-nginx-module.git
-ENV NGINX_VERSION 1.8.0
-
 RUN mkdir /opt/nginx && wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz -O /opt/nginx.tar.gz && tar xfz /opt/nginx.tar.gz -C /opt/nginx && rm -f /opt/nginx.tar.gz
 
-RUN mkdir /opt/module && git clone --depth 1 --single-branch ${MODULE_GIT_URL} /opt/module
+RUN mkdir /opt/module && wget https://github.com/openresty/lua-nginx-module/archive/v${OPENRESTY_VERSION}.tar.gz -O /opt/module.tar.gz && tar xfz /opt/module.tar.gz -C /opt/module && rm -Rf /opt/module.tar.gz
 
 RUN useradd --system --no-create-home --user-group nginx && mkdir -p /var/cache/nginx/ && \
     cd /opt/nginx/nginx-${NGINX_VERSION} && ./configure --prefix=/etc/nginx \
@@ -51,9 +52,9 @@ RUN useradd --system --no-create-home --user-group nginx && mkdir -p /var/cache/
 	--with-http_spdy_module \
 	--with-ipv6 \
 	--with-threads \
-	--add-module=/opt/module \
+	--add-module=/opt/module/lua-nginx-module-${OPENRESTY_VERSION} \
 	&& make && make install
 
-RUN ln -s /usr/local/lib/libluajit-5.1.so.2.0.4 /usr/lib/libluajit-5.1.so.2
+RUN ln -s /usr/local/lib/libluajit-5.1.so.${LUAJIT_VERSION} /usr/lib/libluajit-5.1.so.2
 CMD ["nginx", "-g", "daemon off;"]
 
